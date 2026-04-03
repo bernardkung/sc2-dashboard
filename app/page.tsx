@@ -106,7 +106,7 @@ const leagues = [
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [allData, setAllData] = useState(null);
+  const [allData, setAllData] = useState<any[] | null>(null); 
     
 
 
@@ -167,7 +167,6 @@ const leagues = [
     setLoading(true);
     try {
       const res = await fetch(
-        // `https://${region}.api.blizzard.com/data/sc2/league/${seasonId}/${queueId}/${teamType}/${leagueId}?locale=en_US`
         `/api/blizzard/data/sc2/league/${seasonId}/${qId}/${tType}/${filters.leagueIds[0]}?locale=en_US`
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -175,7 +174,7 @@ const leagues = [
       const json = await res.json();
       setData({...json, playerCount: countLeaguePlayers(json)});
     } catch (e) {
-      setError(e.message);
+      setError(e instanceof Error ? e.message : "An error occurred");
     } finally {
       setLoading(false);
     }
@@ -211,10 +210,9 @@ const leagues = [
         if (i + BATCH_SIZE < urls.length) await delay(DELAY_MS);
       }
 
-      console.log("fetchAllLeagues results:", results);
-      // setAllData(results.map(unpackLeague));
+      setAllData(results);
     } catch (e) {
-      setError(e.message);
+      setError(e instanceof Error ? e.message : "An error occurred");
     } finally {
       setLoading(false);
     }
@@ -222,8 +220,14 @@ const leagues = [
 
   useEffect(() => {
     fetchLeague();
-    // fetchAllLeagues();
+    fetchAllLeagues();
   }, [filters]);
+
+  useEffect(() => {
+    if (allData) {
+      console.log("allData:", allData);
+    }
+  }, [allData]);
 
 
   useEffect(() => {
@@ -233,7 +237,22 @@ const leagues = [
     }
   }, [data, loading, error]);
 
+  const chartData = allData
+    ? allData
+        .filter(result =>
+          result["key"]["queue_id"] === filters.queueId &&
+          result["key"]["team_type"] === filters.teamType
+        )
+        .flatMap(result => countLeaguePlayers(result))
+        .reduce((acc: Record<string, { league: string; players: number }>, item) => {
+          const leagueName = item.league.split(" ")[0]; // "Master 1" → "Master"
+          if (!acc[leagueName]) acc[leagueName] = { league: leagueName, players: 0 };
+          acc[leagueName].players += item.players;
+          return acc;
+        }, {})
+    : {};
 
+  const chartDataArray = Object.values(chartData); // Bronze → Grandmaster order
 
 
 
@@ -252,10 +271,10 @@ const leagues = [
 
       <ToggleGroup 
         variant="outline" 
-        value={String(filters.queueId)}
+        value={[String(filters.queueId)]}
         onValueChange={(value) => {
-          if (!value) return;  // prevent deselecting
-          setFilters(prev => ({ ...prev, queueId: Number(value) }));
+          if (!value || value.length === 0) return;  // prevent deselecting
+          setFilters(prev => ({ ...prev, queueId: Number(value[0]) }));
         }}
       >
         {Object.entries(queueIds).map(([id, name]) => (
@@ -302,11 +321,10 @@ const leagues = [
         <Card className="w-160">
           <CardHeader>
             <CardTitle>Player Distribution</CardTitle>
-            {/* <CardDescription>{leagueIds[data["key"]["league_id"]]} League</CardDescription> */}
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig}>
-              <BarChart accessibilityLayer data={[...data['playerCount']].reverse()}>
+              <BarChart accessibilityLayer data={chartDataArray}>
                 <CartesianGrid vertical={false} />
                 <XAxis
                   dataKey="league"
