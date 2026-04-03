@@ -298,34 +298,11 @@ const leagues = [
       </ToggleGroup>
 
 
-      <ToggleGroup 
-        variant="outline" 
-        value={filters.leagueIds.map(String)}  
-        onValueChange={(values) => {
-          if (values.length === 0) return;       // prevent deselecting all
-          setFilters(prev => ({ ...prev, leagueIds: values.map(Number) }));
-        }}
-        multiple
-      >
-        {leagues.map((league, index) => (
-          <ToggleGroupItem 
-            key={index} 
-            variant="outline" 
-            size="default" 
-            value={String(league.id)}
-          >
-            <img src={league.icon} alt={league.name} className="w-6 h-6 mr-2" />
-            {capitalizeFirst(league.name)}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
-
-
       { data && (
         <Card className="w-160">
           <CardHeader>
             <CardTitle>Player Distribution</CardTitle>
-            <CardDescription>{leagueIds[data["key"]["league_id"]]} League</CardDescription>
+            {/* <CardDescription>{leagueIds[data["key"]["league_id"]]} League</CardDescription> */}
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig}>
